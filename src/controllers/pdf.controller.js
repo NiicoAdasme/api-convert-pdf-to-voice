@@ -3,8 +3,6 @@ const path = require("path");
 const fs = require('fs')
 const pdf = require('pdf-parse')
 const gTTs = require('gtts');
-const { setTimeout } = require('timers/promises');
-
 
 const inicio = (req, res = response) => {
 
@@ -12,18 +10,13 @@ const inicio = (req, res = response) => {
 
     try {
         res.status(200).json({
-            ok: true,
             body: body,
-            msg: 'navega al directorio /pdf con el metodo POST para enviar tu pdf y convertilo a mp3'
+            msg: 'Navigate to /pdf with the POST method to send your PDF file and convert to audio file'
         })
     } catch (err) {
-
-        console.error(err);
-
         res.status(500).json({
-            ok: false,
-            msg: 'Error. Por favor contacte al administrador del servicio.'
-        });
+            msg: `Error. Internal server error. Its our problem. Not yours. ${err}`
+        })
     }
 
 }
@@ -31,108 +24,147 @@ const inicio = (req, res = response) => {
 const sendAudio = async (req, res = response) => {
 
     // se recibe el contenido de la request
-    const body = req.body
+    const { format } = req.body
 
     // se extrae el archivo enviado
-    const pdfFile = req.files
-    // const pathPdf = path.join(__dirname, '../assets', 'pdf', pdfFile.name) 
-    
-    console.log(pdfFile);
-    // console.log(pathPdf);
+    // metadata del pdf
+    const pdfFile = req.files.pdf
+    // Path del pdf
+    const pathPdf = path.join(__dirname, '../assets', 'pdf', pdfFile.name)
 
-    // pdfFile.mv(pathPdf, err => {
-    //     if(err) {
-    //         console.log(`No se pudo guardar el PDF`);
-    //     }else{
-    //         console.log(`PDF guardado en la ruta: ${pathPdf}`);
-    //     }
-    // })
+    // Guardar pdf en el path
+    pdfFile.mv(pathPdf, err => {
+        if (err) {
+            console.log(`We cannot save the PDF file`)
+        } else {
+            console.log(`PDF save in the path: ${pathPdf}`)
+        }
+    })
 
-    // * ubicacion del pdf (prueba)
-    // const pdfReq = `C:\\Users\\Nico\\Desktop\\UBB\\2022-2\\Practica II\\PDF to voice\\backend\\src\\assets\\pdf\\test2.pdf`
-    // // formato requerido por el cliente
-    // const formatReq = "flac"
-    // let firstIndex
-    // let fileName = ''
-    // let AudioRoute = ''
-    // let fileWithFormat = '';
+    // formato requerido por el cliente o formato flac por defecto
+    const formatReq = format || "flac"
 
-    // // * Se necesita la ruta del pdf y el formato de audio al que se quiere convertir.
-    // // nombre del archivo con su extension .pdf
-    // const basename = path.basename(pdfReq) // test.pdf
+    let firstIndex
+    let fileName = ''
+    let AudioRoute = ''
+    let fileWithFormat = ''
 
-    // const dataBuffer = fs.readFileSync(pdfReq)
+    // * Se necesita la ruta del pdf y el formato de audio al que se quiere convertir.
+    // nombre del archivo con su extension .pdf
+    const basename = path.basename(pathPdf) // test.pdf
 
-    // // formatos disponibles para audio
-    // const formatAvailable = ['mp3', 'aac', 'flac', 'ogg', 'wav', 'wma'];
+    // const dataBuffer = fs.readFileSync(pathPdf)
+    const dataBuffer = pdfFile.data
 
-    // if (formatAvailable.includes(formatReq)) {
-    //     firstIndex = basename.indexOf('.')
-    //     fileName = basename.substring(0, firstIndex) // test
-    //     fileWithFormat = `${fileName}.${formatReq}` // test.flac
+    // formatos disponibles para audio
+    const formatAvailable = ['mp3', 'aac', 'flac', 'ogg', 'wav', 'wma']
 
-    //     await pdf(dataBuffer).then(async data => {
-    //         const gtts = new gTTs(data.text, 'es')
+    if (formatAvailable.includes(formatReq)) {
+        firstIndex = basename.indexOf('.')
+        fileName = basename.substring(0, firstIndex) // test
+        fileWithFormat = `${fileName}.${formatReq}` // test.flac
 
-    //         AudioRoute = path.join(__dirname, '../assets', 'audio', fileWithFormat)
+        await pdf(dataBuffer).then(async data => {
+            const gtts = new gTTs(data.text, 'es')
 
-    //         const guardarAudio = new Promise((resolve, reject) => {
+            AudioRoute = path.join(__dirname, '../assets', 'audio', fileWithFormat)
 
-    //             gtts.save(AudioRoute, (err, result) => {
+            const guardarAudio = new Promise((resolve, reject) => {
 
-    //                 if (err) {
-    //                     console.error('error al guardar el audio!!:', err);
+                gtts.save(AudioRoute, (err, result) => {
 
-    //                     res.status(400).json({
-    //                         msg: "no se encontro la ruta del audio. Ocurrio un error"
-    //                     })
-    //                 }
+                    if (err) {
+                        res.status(400).json({
+                            msg: `Error to save the audio or we cannot found the audio path. ${err}`
+                        })
+                    }
 
-    //                 if (result === undefined) {
-    //                     try {
-    //                         res.download(AudioRoute)
-    //                         // console.log('despues de la descarga');
-    //                         // if (fs.existsSync(AudioRoute)) {
-    //                         //     fs.unlinkSync(AudioRoute)
-    //                         //     console.log('Audio Eliminado')
-    //                         // }
-    //                         // else{
-    //                         //     setTimeout(() => {
-    //                         //         fs.unlinkSync(AudioRoute)
-    //                         //     }, 10000);
-    //                         // }
-    //                     } catch (err) {
-    //                         console.error(err);
+                    if (result === undefined) {
+                        try {
+                            res.download(AudioRoute)
+                            // ! Eliminar el pdf y audio, una vez termine la conversion y el envio
+                            // console.log('despues de la descarga');
+                            // if (fs.existsSync(AudioRoute)) {
+                            //     fs.unlinkSync(AudioRoute)
+                            //     console.log('Audio Eliminado')
+                            // }
+                            // else{
+                            //     setTimeout(() => {
+                            //         fs.unlinkSync(AudioRoute)
+                            //     }, 10000);
+                            // }
+                        } catch (err) {
+                            res.status(500).json({
+                                msg: `Error. Internal server error. Its our problem. Not yours. ${err}`
+                            });
+                        }
+                    }
+                })
 
-    //                         res.status(500).json({
-    //                             ok: false,
-    //                             msg: 'Error. Por favor contacte al administrador del servicio.'
-    //                         });
-    //                     }
-    //                 }
-    //             })
+                if (AudioRoute) {
+                    resolve(`Audio saved`)
+                } else {
+                    reject('Promise reject. Error to save the audio or we cannot found the audio path')
+                }
+            })
 
-    //             if (AudioRoute) {
-    //                 resolve(`Audio guardado`)
-    //             } else {
-    //                 reject('Se rechazo la promesa. No se encontro el directorio del audio')
-    //             }
-    //         })
+            await guardarAudio
+                .then(msg => console.log(msg))
+                .catch(err => console.log(err))
 
-    //         await guardarAudio
-    //             .then(msg => console.log(msg))
-    //             .catch(err => console.log(err))
+        })
 
-    //     })
-
-    // } else {
-    //     console.log(`Formato no disponible`);
-    // }
+    } else {
+        res.status(400).json({
+            msg: 'Format not available. These format are available: mp3, aac, flac, ogg, wav, wma',
+        });
+    }
 
 
 }
 
+
+const deleteFiles = (req, res = response) => {
+    const pdfFolderToRemove = path.join(__dirname, '../assets', 'pdf')
+    const audioFolderToRemove = path.join(__dirname, '../assets', 'audio')
+    let extension = '';
+
+    // PDF FOLDER
+    const pdfFolder = fs.readdirSync(pdfFolderToRemove)
+
+    pdfFolder.forEach(file => {
+        if (path.extname(file) === '.pdf') {
+            console.log(file);
+            fs.unlinkSync(path.join(pdfFolderToRemove, file))
+        }
+    })
+
+    console.log(pdfFolder);
+
+    // AUDIO FOLDER
+    const audioFolder = fs.readdirSync(audioFolderToRemove)
+
+    audioFolder.forEach(file => {
+        extension = path.extname(file)
+        if (extension === '.flac' || extension === '.mp3' || extension === '.aac' || extension === '.ogg' || extension === '.wav' || extension === '.wma') {
+            fs.unlinkSync(path.join(audioFolderToRemove, file))
+        }
+    })
+
+    // RESPONSE
+    if (pdfFolder.length === 0 || audioFolder.length === 0) {
+        res.status(200).json({
+            msg: `Files deleted`
+        })
+    } else {
+        res.status(400).json({
+            msg: `Something wrong happened removing files.`
+        })
+    }
+}
+
 module.exports = {
     inicio,
-    sendAudio
+    sendAudio,
+    deleteFiles
 }
