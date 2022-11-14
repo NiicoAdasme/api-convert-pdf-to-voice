@@ -10,3 +10,6 @@
 4. In some http client like Postman put the URL and add /api/pdf with POST method and select body *form-data*
 5. Add the key "pdf" file type
 6. Add the key "format". You can use mp3, aac, flac, ogg, wav and wma. Default: flac (opcional)
+
+### Here is an example
+![Postman Rquest](/assets/example.png)
