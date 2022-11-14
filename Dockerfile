@@ -1,6 +1,6 @@
 FROM node:16
 
-WORKDIR /app
+WORKDIR /pdf-to-voice
 
 COPY package*.json .
 
