@@ -12,4 +12,4 @@
 6. Add the key "format". You can use mp3, aac, flac, ogg, wav and wma. Default: flac (opcional)
 
 ### Here is an example
-![Postman Rquest](/assets/example.png)
+![Postman Rquest](https://github.com/NiicoAdasme/api-convert-pdf-to-voice/blob/main/src/assets/example.png?raw=true)
