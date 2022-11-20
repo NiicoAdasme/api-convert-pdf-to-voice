@@ -20,7 +20,7 @@ app.use(fileUpload({
 }))
 
 // Directorio publico
-app.use(express.static(path.join(__dirname, 'src', 'assets')));
+app.use(express.static(`src/assets/audio`));
 
 // Lectura y parseo del body
 app.use(express.json());
